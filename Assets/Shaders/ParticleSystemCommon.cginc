@@ -4,7 +4,7 @@ struct ParticleStruct
 {
     float3 pos;
     float3 vel;
-    float3 cd;
+    float4 cd;
     float age;
 };
 
@@ -23,4 +23,12 @@ float3 randomSpherePoint(float3 rand) {
     float y = sqrt1MinusU2 * sin(ang1);
     float z = u;
     return float3(x, y, z);
+}
+
+float fit(float val, float inMin, float inMax, float outMin, float outMax) {
+    return ((outMax - outMin) * (val - inMin) / (inMax - inMin)) + outMin;
+}
+
+float2 fit(float2 val, float2 inMin, float2 inMax, float2 outMin, float2 outMax) {
+    return ((outMax - outMin) * (val - inMin) / (inMax - inMin)) + outMin;
 }

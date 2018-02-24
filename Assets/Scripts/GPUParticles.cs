@@ -17,27 +17,28 @@ namespace GPUParticles
         [Range(0,1)]
         public float Mass = 0.5f;
         [Range(0,1)]
-        public float Momentum = 0.5f;
-        public ColorRamp ColorByVelocity;
+        public float Momentum = 0.9f;
+        [Range(0,VertCount)]
+        public int Emission = 65000;
+        public Color StartColor;
+        public ColorRamp ColorByLife;
+        public ColorRampRange ColorByVelocity;
         public Vector4 Origin = new Vector4(0f, 0f, 0f, 1f);
 
+        [Space(10)]
+        public int PreWarmFrames = 0;
 
         // #endregion
         
-
         // #region Private Variables
 
-        private ComputeBuffer offsetBuffer;
-        private ComputeBuffer colorBuffer;
-        private ComputeBuffer velocityBuffer;
         private ComputeBuffer particlesBuffer;
         private int _kernel;
 
-        private const int NumElements = 10; //float3 pos, vel, cd; float age
+        private const int NumElements = 11; //float4 cd; float3 pos, vel; float age
         private const int VertCount = 262144; //32*32*16*16 (Groups*ThreadsPerGroup)
 
         // #endregion
-
 
         //We initialize the buffers and the material used to draw.
         void Start()
@@ -45,14 +46,19 @@ namespace GPUParticles
             CreateBuffers();            
             _kernel = computeShader.FindKernel("ParticleSystemKernel");
 
-            computeShader.SetBuffer(_kernel, "offsets", offsetBuffer);
-            computeShader.SetBuffer(_kernel, "velocity", velocityBuffer);
-            computeShader.SetBuffer(_kernel, "colors", colorBuffer);
             computeShader.SetBuffer(_kernel, "output", particlesBuffer);
 
+            ColorByLife.Setup();
             ColorByVelocity.Setup();
-            computeShader.SetTexture(_kernel, "colorByVelocity", (Texture)ColorByVelocity.texture);
+            computeShader.SetTexture(_kernel, "colorByLife", (Texture)ColorByLife.Texture);
+            computeShader.SetTexture(_kernel, "colorByVelocity", (Texture)ColorByVelocity.Texture);
 
+            UpdateUniforms();
+
+            // Prewarm the system
+            for (int i = 0; i < PreWarmFrames; i++) {
+                Dispatch();
+            }
             
         }
 
@@ -67,7 +73,6 @@ namespace GPUParticles
             Dispatch();
 
             material.SetPass(0);
-            //material.SetBuffer("buf_Points", particlesBuffer);
             material.SetBuffer("dataBuffer", particlesBuffer);
             Graphics.DrawProcedural(MeshTopology.Points, VertCount);
         }
@@ -97,10 +102,10 @@ namespace GPUParticles
             computeShader.SetFloat("dt", Time.deltaTime);
             computeShader.SetFloat("mass", Mass);
             computeShader.SetFloat("momentum", Momentum);
+            computeShader.SetInt("emission", Emission);
+            computeShader.SetVector("startColor", StartColor);
+            computeShader.SetFloat("velocityColorRange", ColorByVelocity.Range);
             computeShader.SetVector("origin", Origin);
-
-            // ColorByVelocity.Update();
-            computeShader.SetTexture(_kernel, "colorByVelocity", ColorByVelocity.texture);
 
         }
 
@@ -110,9 +115,6 @@ namespace GPUParticles
         private void CreateBuffers()
         {
             // Allocate
-            offsetBuffer = new ComputeBuffer(VertCount, 4); //Contains a single float value (OffsetStruct)
-            colorBuffer = new ComputeBuffer(VertCount, 12); //float * 3
-            velocityBuffer = new ComputeBuffer(VertCount, 4 * 3);
             particlesBuffer = new ComputeBuffer(VertCount, 4 * NumElements); //float3 pos, vel, cd; float age
             
 
@@ -134,8 +136,6 @@ namespace GPUParticles
                 }
             }
 
-            offsetBuffer.SetData(offsetValues);
-            colorBuffer.SetData(colors);
             particlesBuffer.SetData(particleZeroes);
 
         }
@@ -143,10 +143,7 @@ namespace GPUParticles
         //Remember to release buffers and destroy the material when play has been stopped.
         private void ReleaseBuffers()
         {
-            offsetBuffer.Release();
             particlesBuffer.Release();
-            velocityBuffer.Release();
-            colorBuffer.Release();
 
         }
 

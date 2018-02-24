@@ -12,7 +12,7 @@ namespace GPUParticles
 
 		public Gradient Gradient;
 
-		public Texture2D texture;
+		private Texture2D texture;
 		public Texture2D Texture 
 		{
 			get
