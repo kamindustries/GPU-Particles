@@ -1,7 +1,13 @@
-﻿using UnityEngine;
+﻿/* 
 
-//This game object invokes PlaneComputeShader (when attached via drag'n drop in the editor) using the PlaneBufferShader (also attached in the editor)
-//to display a grid of points moving back and forth along the z axis.
+Description:
+    GPU Particles using compute shaders in Unity.
+    Built with Unity 2017.2
+
+*/
+
+using UnityEngine;
+
 namespace GPUParticles 
 {
     public class GPUParticles : MonoBehaviour
@@ -11,22 +17,26 @@ namespace GPUParticles
         // public Shader shader;
         public ComputeShader computeShader;
         public Material material;
-        [Space(10)]
         
-        [Header("Variables")]
-        [Range(0,1)]
-        public float Mass = 0.5f;
-        [Range(0,1)]
-        public float Momentum = 0.9f;
+        [Space(10)]
+        [Header("Particles")]
+        public Vector3 Origin = new Vector3(0f, 0f, 0f);
+        public Vector2 Mass = new Vector2(0.5f, 0.5f);
+        public Vector2 Momentum = new Vector2(0.5f, 0.5f);
+        public Vector2 Lifespan = new Vector2(5f, 5f);
         [Range(0,VertCount)]
         public int Emission = 65000;
         public Color StartColor;
         public ColorRamp ColorByLife;
         public ColorRampRange ColorByVelocity;
-        public Vector4 Origin = new Vector4(0f, 0f, 0f, 1f);
+        public int PreWarmFrames = 0;
 
         [Space(10)]
-        public int PreWarmFrames = 0;
+        [Header("Noise")]
+        public Vector3 NoiseAmplitude = new Vector3(1f,1f,1f);
+        public Vector3 NoiseScale = new Vector3(1f,1f,1f);
+        public Vector3 NoiseOffset = new Vector3(0f,0f,0f);
+
 
         // #endregion
         
@@ -35,7 +45,7 @@ namespace GPUParticles
         private ComputeBuffer particlesBuffer;
         private int _kernel;
 
-        private const int NumElements = 11; //float4 cd; float3 pos, vel; float age
+        private const int NumElements = 14; //float4 cd; float3 pos, vel; float age, lifespan, mass, momentum
         private const int VertCount = 262144; //32*32*16*16 (Groups*ThreadsPerGroup)
 
         // #endregion
@@ -56,8 +66,10 @@ namespace GPUParticles
             UpdateUniforms();
 
             // Prewarm the system
-            for (int i = 0; i < PreWarmFrames; i++) {
-                Dispatch();
+            if (PreWarmFrames > 0) {
+                for (int i = 0; i < PreWarmFrames; i++) {
+                    Dispatch();
+                }
             }
             
         }
@@ -94,18 +106,21 @@ namespace GPUParticles
             if (Input.GetMouseButton(0)){
                 Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
                 Vector3 o = ray.origin + (ray.direction * 20f);
-                Origin.x = o.x;
-                Origin.y = o.y;
-                Origin.z = o.z;
+                Origin = o;
             }
 
             computeShader.SetFloat("dt", Time.deltaTime);
-            computeShader.SetFloat("mass", Mass);
-            computeShader.SetFloat("momentum", Momentum);
+            computeShader.SetVector("origin", Origin);
+            computeShader.SetVector("massNew", Mass);
+            computeShader.SetVector("momentumNew", Momentum);
+            computeShader.SetVector("lifespanNew", Lifespan);
             computeShader.SetInt("emission", Emission);
             computeShader.SetVector("startColor", StartColor);
             computeShader.SetFloat("velocityColorRange", ColorByVelocity.Range);
-            computeShader.SetVector("origin", Origin);
+            computeShader.SetVector("noiseAmplitude", NoiseAmplitude);
+            computeShader.SetVector("noiseScale", NoiseScale);
+            computeShader.SetVector("noiseOffset", NoiseOffset);
+
 
         }
 

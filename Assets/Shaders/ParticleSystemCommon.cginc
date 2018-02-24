@@ -6,6 +6,9 @@ struct ParticleStruct
     float3 vel;
     float4 cd;
     float age;
+    float lifespan;
+    float mass;
+    float momentum;
 };
 
 float rand(float2 co)

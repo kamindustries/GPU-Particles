@@ -26,6 +26,7 @@ namespace GPUParticles
 		public void Setup() {
 			texture = new Texture2D(width, 1, TextureFormat.RGBAFloat, false);
 			texture.filterMode = FilterMode.Point;
+			texture.wrapMode = TextureWrapMode.Clamp;
 			
 			Update();
 		}
