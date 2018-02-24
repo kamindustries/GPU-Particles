@@ -1,0 +1,92 @@
+#pragma kernel ParticleSystemKernel
+
+#include "ParticleSystemCommon.cginc"
+
+//We define the size of a group in the x and y directions, z direction will just be one
+#define thread_group_size_x 16
+#define thread_group_size_y 16
+
+
+//We keep three buffers accessed by the kernel, a constant buffer that is the same for every computation,
+//an offset buffer with a value to offset the wave, and an output buffer that is written to by the kernel
+RWStructuredBuffer<float> offsets;
+RWStructuredBuffer<float3> colors;
+Texture2D<float4> colorByVelocity;
+RWStructuredBuffer<ParticleStruct> output;
+
+float dt;
+float mass;
+float momentum;
+float4 origin;
+
+const float cellSize = 1.25;
+
+
+//The kernel for this compute shader, each thread group contains a number of threads specified by numthreads(x,y,z)
+//We lookup the the index into the flat array by using x + y * x_stride
+//The position is calculated from the thread index and then the z component is shifted by the Wave function
+[numthreads(thread_group_size_x, thread_group_size_y, 1)]
+void ParticleSystemKernel(uint3 id : SV_DispatchThreadID)
+{
+	int idx = id.x + id.y * thread_group_size_x * 32;
+
+	float spacing = .05;
+
+	// float3 pos = float3(id.x*spacing, id.y*spacing, id.z*spacing);
+	float3 pos = output[idx].pos;
+	float3 vel = output[idx].vel;
+	float3 cd = output[idx].cd;
+	float age = output[idx].age;
+
+	float3 cdIn = colors[idx];
+	float3 velIn = float3(0.0, -9.0, 0.0);
+
+	float r = rand(float2(id.x+.125, id.y));
+	float r2 = rand(float2(id.x+.2, id.y));
+	
+	//A simple sine modulation of the z coordinate, with an offset by a random value between 0 and 2PI
+	// pos.z = sin(dt + offsets[idx]) * 3.;
+
+	// vel = velIn * (mass * pow(abs(1./cellSize), dt * 20.)  ) * dt + vel * momentum;
+	vel = velIn * (mass * dt) + vel * momentum * r2;
+
+	pos += vel;
+	
+	// cd = cdIn;
+	// cd = float3(age,age,age);
+	float ageClamp = clamp(age, 0.0, 1.0);
+	uint2 ageId = uint2(ageClamp*1023, 0);
+	cd = colorByVelocity[ageId].rgb;
+
+	// float ageTest = clamp(age, 0.0, 1.0);
+	// cd = float3(ageTest, ageTest, ageTest);
+
+	age -= 0.003;
+
+	if (age <= 0.0) {
+		float3 randSphere = randomSpherePoint(float3(	rand(float2(id.x,id.y)), 
+														rand(float2(id.x,id.y+0.2)), 
+														rand(float2(id.x,id.y+0.3))));
+		pos = origin.xyz + (randSphere * .25);
+		
+		// vel = float3(0.0, 0.0, 0.0);
+
+		// float3 randDir = float3(rand(float3(id.x,id.y,0.)), 1.0, rand(float3(id.x,id.y,0.1)));
+		// float3 randDir = float3(rand(float3(id.x,id.y,0.)), rand(float3(id.x,id.y,0.2)), rand(float3(id.x,id.y,0.3)));
+		// randDir = (randDir*2.) - 1.;
+		// randDir.xz *= .15;
+		// randDir *= 10.;
+
+		// randDir *= 2.;
+		vel = randSphere;
+
+		// age = 1.0 * (r + .25);
+		age = 1.0 + (r * .25);
+	}
+
+
+	output[idx].pos = pos;
+	output[idx].vel = vel;
+	output[idx].cd = cd;
+	output[idx].age = age;
+}
