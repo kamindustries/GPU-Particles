@@ -5,7 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace GPUParticles 
+namespace GPU_Particles 
 {
 	[System.Serializable]
 	public class ColorRamp {
@@ -32,6 +32,8 @@ namespace GPUParticles
 		}
 
 		public void Update() {
+			if (!texture) Setup();
+
 			Color [] tempArray = new Color[width];
 			for (int i = 0; i < 1024; i++) {
 				float time = (float)i/(float)width;

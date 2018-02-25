@@ -4,7 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace GPUParticles 
+namespace GPU_Particles 
 {
 	[System.Serializable]
 	public class ColorRampRange : ColorRamp {

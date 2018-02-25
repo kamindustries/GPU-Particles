@@ -19,6 +19,8 @@ float3 origin;
 float2 massNew;
 float2 momentumNew;
 float2 lifespanNew;
+float initialSpeed;
+float3 initialVelocityDir;
 int emission;
 float4 startColor;
 float velocityColorRange;
@@ -77,7 +79,7 @@ void ParticleSystemKernel(uint3 id : SV_DispatchThreadID)
 
 			pos = origin.xyz + (randSphere * .25);
 			
-			vel = float3(0,0,0);
+			vel = (initialVelocityDir * initialSpeed) + (randSphere * .1);
 
 			cd = startColor * colorByLife[uint2(0,0)] * colorByVelocity[uint2(0,0)];
 
