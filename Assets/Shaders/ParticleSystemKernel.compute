@@ -10,18 +10,27 @@
 
 //We keep three buffers accessed by the kernel, a constant buffer that is the same for every computation,
 //an offset buffer with a value to offset the wave, and an output buffer that is written to by the kernel
-Texture2D<float4> colorByLife;
-Texture2D<float4> colorByVelocity;
+Texture2D<float4> _colorByLife;
+Texture2D<float4> _colorByVelocity;
 RWStructuredBuffer<ParticleStruct> output;
+
+SamplerState sampler_colorByLife;
 
 float dt;
 float3 origin;
 float2 massNew;
 float2 momentumNew;
 float2 lifespanNew;
-float initialSpeed;
+
+float inheritVelocityMult;
 float3 initialVelocityDir;
+float3 gravityIn;
+float gravityModifier;
+
 int emission;
+float3 emissionSize;
+float initialSpeed;
+
 float4 startColor;
 float velocityColorRange;
 float3 noiseAmplitude;
@@ -30,6 +39,7 @@ float3 noiseOffset;
 
 
 const float cellSize = 1.25;
+
 
 
 //The kernel for this compute shader, each thread group contains a number of threads specified by numthreads(x,y,z)
@@ -53,23 +63,30 @@ void ParticleSystemKernel(uint3 id : SV_DispatchThreadID)
 	float3 randSphere = randomSpherePoint(float3(rand(float2(id.x,id.y)), 
 												rand(float2(id.x,id.y+0.2)), 
 												rand(float2(id.x,id.y+0.3))));
-	
+
 	float3 noiseCoord = (pos * noiseScale) + noiseOffset;
 	float3 simplexNoise = float3(snoise(noiseCoord), snoise(noiseCoord + 17.0), snoise(noiseCoord - 43.0));
 	simplexNoise *= noiseAmplitude;
 	
-	float3 velIn = simplexNoise;
+	float3 gravity = gravityIn * gravityModifier;
+
+	float3 velIn = simplexNoise + gravity;
 
 	vel = velIn * (mass * dt) + vel * momentum;
 
 	pos += vel;
 	
-	float ageClamp = fit(age, 0., output[idx].lifespan, 1023., 0.);
-	uint2 ageId = uint2(ageClamp, 0);
+	// float ageClamp = fit(age, 0., output[idx].lifespan, 1023., 0.);
+	// uint2 ageId = uint2(ageClamp, 0);
 
+	float2 coord = float2(fit(age, 0., output[idx].lifespan, 1., 0.), 0.5);
+	float4 cdLife = _colorByLife.SampleLevel(sampler_colorByLife, coord, 0.0);
+	
 	float speed = length(vel);
-	uint2 magId = uint2(fit(speed, 0., velocityColorRange, 0., 1023.), 0);
-	cd = startColor * colorByLife[ageId] * colorByVelocity[magId];
+	coord = float2(fit(clamp(speed, 0., velocityColorRange), 0., velocityColorRange, 0., 1.), 0.5);
+	float4 cdVel = _colorByVelocity.SampleLevel(sampler_colorByLife, coord, 0.0);
+
+	cd = startColor * cdLife * cdVel;
 
 	age -= dt;
 
@@ -77,11 +94,13 @@ void ParticleSystemKernel(uint3 id : SV_DispatchThreadID)
 	if (age <= 0.0) {
 		if (idx < emission) {
 
-			pos = origin.xyz + (randSphere * .25);
+			pos = origin.xyz + (randSphere * emissionSize);
 			
-			vel = (initialVelocityDir * initialSpeed) + (randSphere * .1);
+			vel = (randSphere * initialSpeed);
+			// vel += (randSphere * initialSpeed) * length(initialVelocityDir);
+			vel += (initialVelocityDir * inheritVelocityMult);
 
-			cd = startColor * colorByLife[uint2(0,0)] * colorByVelocity[uint2(0,0)];
+			cd = startColor * _colorByLife[uint2(0,0)] * _colorByVelocity[uint2(0,0)];
 
 			float newLifespan = fit(rand(float2(id.x+.6, id.y)), 0., 1., lifespanNew.x, lifespanNew.y) * 2.; //*2 puts it into seconds
 			age = newLifespan;

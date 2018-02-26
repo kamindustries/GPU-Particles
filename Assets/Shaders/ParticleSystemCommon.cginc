@@ -16,7 +16,7 @@ float rand(float2 co)
 	return frac(sin(dot(co.xy,float2(12.9898,78.233))) * 43758.5453);
 }
 
-float3 randomSpherePoint(float3 rand) {
+float3 randomSpherePointSurface(float3 rand) {
     float3 randNew = (rand*2.)-1.;
     float ang1 = (randNew.x + 1.0) * PI; // [-1..1) -> [0..2*PI)
     float u = randNew.y; // [-1..1), cos and acos(2v-1) cancel each other out, so we arrive at [-1..1)
@@ -26,6 +26,16 @@ float3 randomSpherePoint(float3 rand) {
     float y = sqrt1MinusU2 * sin(ang1);
     float z = u;
     return float3(x, y, z);
+}
+
+float3 randomSpherePoint(float3 rand) {
+    float3 thetaPhiR = rand;
+    thetaPhiR.x *= 2. * PI;
+    thetaPhiR.y = ((thetaPhiR.y * 2.) - 1.) * 0.5 * PI;
+    float x = cos(thetaPhiR.x) * cos(thetaPhiR.y);
+    float y = sin(thetaPhiR.y);
+    float z = sin(thetaPhiR.x) * cos(thetaPhiR.y);
+    return float3(x,y,z) * sqrt(sqrt(thetaPhiR.z));
 }
 
 float fit(float val, float inMin, float inMax, float outMin, float outMax) {

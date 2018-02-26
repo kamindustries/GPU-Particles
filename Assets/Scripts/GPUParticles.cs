@@ -4,15 +4,29 @@ Description:
     Built with Unity 2017.2
 
 TODO:
-    * Precompute noise at lower resolution?
-    * Precompute random fields
+    * Rotation
+    * Rotation over lifetime
+    * Rotation by speed
+    * Velocity over lifetime
+    * Gravity Modifier
+    * Limit velocity over lifetime
+    * Size
+    * Size over lifetime
     * Emission types:
         - Sphere
         - Disk
         - Line
         - Mesh
         - Skinned mesh renderer
-
+    * Rendering modes:
+        - Sprite
+        - Trails
+        - Instanced
+    * Optimization:
+        - Precompute random fields
+        - Precompute noise at lower resolution?
+    * Switch to DispatchIndirect to control kernel size dynamically
+    * Depth buffer collision
 
 */
 
@@ -31,20 +45,23 @@ namespace GPU_Particles
         public Vector2 Mass = new Vector2(0.5f, 0.5f);
         public Vector2 Momentum = new Vector2(0.5f, 0.5f);
         public Vector2 Lifespan = new Vector2(5f, 5f);
+        public int PreWarmFrames = 0;
 
         [Header("Velocity")]
-        public float InitialSpeed = 0f;
+        public float InheritVelocity = 0f;
         public int EmitterVelocity = 0;
+        public float GravityModifier = 0f;
 
         [Header("Shape")]
         [Range(0,VertCount)]
         public int Emission = 65000;
+        public Vector3 EmissionSize = new Vector3(1f,1f,1f);
+        public float InitialSpeed = 0f;
 
         [Header("Color")]
         public Color StartColor;
         public ColorRamp ColorByLife;
         public ColorRampRange ColorByVelocity;
-        public int PreWarmFrames = 0;
 
         [Header("Noise")]
         public Vector3 NoiseAmplitude = new Vector3(1f,1f,1f);
@@ -61,7 +78,8 @@ namespace GPU_Particles
         private Vector3 prevPos;
         
         private const int NumElements = 14; //float4 cd; float3 pos, vel; float age, lifespan, mass, momentum
-        private const int VertCount = 262144; //32*32*16*16 (Groups*ThreadsPerGroup)
+        // private const int VertCount = 262144; //32*32*16*16 (Groups*ThreadsPerGroup)
+        private const int VertCount = 1048576; //64*64*16*16 (Groups*ThreadsPerGroup)
         #endregion
 
         //We initialize the buffers and the material used to draw.
@@ -74,8 +92,8 @@ namespace GPU_Particles
 
             ColorByLife.Setup();
             ColorByVelocity.Setup();
-            Compute.SetTexture(_kernel, "colorByLife", (Texture)ColorByLife.Texture);
-            Compute.SetTexture(_kernel, "colorByVelocity", (Texture)ColorByVelocity.Texture);
+            Compute.SetTexture(_kernel, "_colorByLife", (Texture)ColorByLife.Texture);
+            Compute.SetTexture(_kernel, "_colorByVelocity", (Texture)ColorByVelocity.Texture);
 
             UpdateUniforms();
 
@@ -88,18 +106,17 @@ namespace GPU_Particles
             
         }
 
-        void Update() 
-        {
+        void FixedUpdate() {
             UpdateUniforms();
+            Dispatch();
+            
         }
 
         // Dispatch the kernel and draw points
         void OnRenderObject() 
         {
-            Dispatch();
-
-            Material.SetPass(0);
             Material.SetBuffer("dataBuffer", particlesBuffer);
+            Material.SetPass(0);
             Graphics.DrawProcedural(MeshTopology.Points, VertCount);
         }
 
@@ -112,7 +129,8 @@ namespace GPU_Particles
         //We dispatch 32x32x1 groups of threads of our CSMain kernel.
         private void Dispatch()
         {
-            Compute.Dispatch(_kernel, 32, 32, 1);
+            // Compute.Dispatch(_kernel, 32, 32, 1);
+            Compute.Dispatch(_kernel, 64, 64, 1);
 
         }
 
@@ -153,15 +171,18 @@ namespace GPU_Particles
             Compute.SetVector("massNew", Mass);
             Compute.SetVector("momentumNew", Momentum);
             Compute.SetVector("lifespanNew", Lifespan);
-            Compute.SetFloat("initialSpeed", InitialSpeed);
+            Compute.SetFloat("inheritVelocityMult", InheritVelocity);
             Compute.SetVector("initialVelocityDir", initialVelocityDir);
+            Compute.SetVector("gravityIn", Physics.gravity);
+            Compute.SetFloat("gravityModifier", GravityModifier);
             Compute.SetInt("emission", Emission);
+            Compute.SetVector("emissionSize", EmissionSize);
+            Compute.SetFloat("initialSpeed", InitialSpeed);
             Compute.SetVector("startColor", StartColor);
             Compute.SetFloat("velocityColorRange", ColorByVelocity.Range);
             Compute.SetVector("noiseAmplitude", NoiseAmplitude);
             Compute.SetVector("noiseScale", NoiseScale);
             Compute.SetVector("noiseOffset", NoiseOffset);
-
 
         }
 

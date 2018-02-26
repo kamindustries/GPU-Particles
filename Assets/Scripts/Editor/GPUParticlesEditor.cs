@@ -11,18 +11,27 @@ namespace GPU_Particles {
         SerializedProperty Compute;
         SerializedProperty Material;
 
+		// Particles
         SerializedProperty Mass;
         SerializedProperty Momentum;
         SerializedProperty Lifespan;
+        SerializedProperty PreWarmFrames;
+
+		// Velocity
+        SerializedProperty InheritVelocity;
+        SerializedProperty GravityModifier;
+
+		// Shape
+        SerializedProperty Emission;
+        SerializedProperty EmissionSize;
         SerializedProperty InitialSpeed;
 
-        SerializedProperty Emission;
-
+		// Color
         SerializedProperty StartColor;
         SerializedProperty ColorByLife;
         SerializedProperty ColorByVelocity;
-        SerializedProperty PreWarmFrames;
 
+		// Noise
         SerializedProperty NoiseAmplitude;
         SerializedProperty NoiseScale;
         SerializedProperty NoiseOffset;
@@ -35,18 +44,27 @@ namespace GPU_Particles {
 			Compute = serializedObject.FindProperty("Compute");
 			Material = serializedObject.FindProperty("Material");
 			
+			// Particles
 			Mass = serializedObject.FindProperty("Mass");
 			Momentum = serializedObject.FindProperty("Momentum");
 			Lifespan = serializedObject.FindProperty("Lifespan");
+			PreWarmFrames = serializedObject.FindProperty("PreWarmFrames");
+
+			// Velocity
+			InheritVelocity = serializedObject.FindProperty("InheritVelocity");
+			GravityModifier = serializedObject.FindProperty("GravityModifier");
+
+			// Shape
+			Emission = serializedObject.FindProperty("Emission");
+			EmissionSize = serializedObject.FindProperty("EmissionSize");
 			InitialSpeed = serializedObject.FindProperty("InitialSpeed");
 
-			Emission = serializedObject.FindProperty("Emission");
-
+			// Color
 			StartColor = serializedObject.FindProperty("StartColor");
 			ColorByLife = serializedObject.FindProperty("ColorByLife");
 			ColorByVelocity = serializedObject.FindProperty("ColorByVelocity");
-			PreWarmFrames = serializedObject.FindProperty("PreWarmFrames");
 
+			// Noise
 			NoiseAmplitude = serializedObject.FindProperty("NoiseAmplitude");
 			NoiseScale = serializedObject.FindProperty("NoiseScale");
 			NoiseOffset = serializedObject.FindProperty("NoiseOffset");
@@ -61,18 +79,27 @@ namespace GPU_Particles {
 			EditorGUILayout.PropertyField(Compute);
 			EditorGUILayout.PropertyField(Material);
 
+			// Particles
 			EditorGUILayout.PropertyField(Mass);
 			EditorGUILayout.PropertyField(Momentum);
 			EditorGUILayout.PropertyField(Lifespan);
-			EditorGUILayout.PropertyField(InitialSpeed);
+			EditorGUILayout.PropertyField(PreWarmFrames);
+
+
+			// Velocity
+			EditorGUILayout.PropertyField(InheritVelocity);
 			_emitterVelocityIdx = particles.EmitterVelocity;
 			_emitterVelocityIdx = EditorGUILayout.Popup("Emitter Velocity", _emitterVelocityIdx, _emitterVelocity);
 			particles.EmitterVelocity = _emitterVelocityIdx;
+			EditorGUILayout.PropertyField(GravityModifier);
 
+			// Shape
 			EditorGUILayout.PropertyField(Emission);
+			EditorGUILayout.PropertyField(EmissionSize);
+			EditorGUILayout.PropertyField(InitialSpeed);
 
+			// Color
 			EditorGUILayout.PropertyField(StartColor);
-			
 			// Interactive gradient editor
 			EditorGUI.BeginChangeCheck();
 			EditorGUILayout.PropertyField(ColorByLife, true);
@@ -82,8 +109,7 @@ namespace GPU_Particles {
 				particles.ColorByVelocity.Update();
 			}
 
-			EditorGUILayout.PropertyField(PreWarmFrames);
-
+			// Noise
 			EditorGUILayout.PropertyField(NoiseAmplitude);
 			EditorGUILayout.PropertyField(NoiseScale);
 			EditorGUILayout.PropertyField(NoiseOffset);
