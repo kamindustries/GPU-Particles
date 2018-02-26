@@ -57,47 +57,44 @@ void ParticleSystemKernel(uint3 id : SV_DispatchThreadID)
 	float mass = output[idx].mass;
 	float momentum = output[idx].momentum;
 
+	// Randomness
 	float r1 = rand(float2(id.x+.1, id.y));
 	float r2 = rand(float2(id.x+.2, id.y));
-	float r3 = rand(float2(id.x+.2, id.y));
-	float3 randSphere = randomSpherePoint(float3(rand(float2(id.x,id.y)), 
-												rand(float2(id.x,id.y+0.2)), 
-												rand(float2(id.x,id.y+0.3))));
+	float r3 = rand(float2(id.x+.3, id.y));
+	float3 randSphere = randomSpherePoint(float3(r1,r2,r3));
 
+	// Noise
 	float3 noiseCoord = (pos * noiseScale) + noiseOffset;
 	float3 simplexNoise = float3(snoise(noiseCoord), snoise(noiseCoord + 17.0), snoise(noiseCoord - 43.0));
 	simplexNoise *= noiseAmplitude;
 	
+	// Gravity
 	float3 gravity = gravityIn * gravityModifier;
 
+	// Velocity
 	float3 velIn = simplexNoise + gravity;
-
 	vel = velIn * (mass * dt) + vel * momentum;
-
 	pos += vel;
 	
-	// float ageClamp = fit(age, 0., output[idx].lifespan, 1023., 0.);
-	// uint2 ageId = uint2(ageClamp, 0);
-
+	// Color
+	float speed = length(vel);
 	float2 coord = float2(fit(age, 0., output[idx].lifespan, 1., 0.), 0.5);
 	float4 cdLife = _colorByLife.SampleLevel(sampler_colorByLife, coord, 0.0);
-	
-	float speed = length(vel);
 	coord = float2(fit(clamp(speed, 0., velocityColorRange), 0., velocityColorRange, 0., 1.), 0.5);
 	float4 cdVel = _colorByVelocity.SampleLevel(sampler_colorByLife, coord, 0.0);
-
 	cd = startColor * cdLife * cdVel;
 
+	// Age
 	age -= dt;
 
 	// Spawn new particles
 	if (age <= 0.0) {
+		// Simple emission control
 		if (idx < emission) {
 
 			pos = origin.xyz + (randSphere * emissionSize);
 			
 			vel = (randSphere * initialSpeed);
-			// vel += (randSphere * initialSpeed) * length(initialVelocityDir);
 			vel += (initialVelocityDir * inheritVelocityMult);
 
 			cd = startColor * _colorByLife[uint2(0,0)] * _colorByVelocity[uint2(0,0)];
@@ -106,12 +103,11 @@ void ParticleSystemKernel(uint3 id : SV_DispatchThreadID)
 			age = newLifespan;
 
 			output[idx].lifespan = newLifespan;
-			output[idx].mass = fit(rand(float2(id.x+.7, id.y)), 0., 1., massNew.x, massNew.y);  //*2 puts it into seconds
-			output[idx].momentum = fit(rand(float2(id.x+.8, id.y)), 0., 1., momentumNew.x, momentumNew.y);  //*2 puts it into seconds
+			output[idx].mass = fit(rand(float2(id.x+.7, id.y)), 0., 1., massNew.x, massNew.y);
+			output[idx].momentum = fit(rand(float2(id.x+.8, id.y)), 0., 1., momentumNew.x, momentumNew.y);
 		}
-
 		else {
-			pos = randSphere * 1000000;
+			pos = randSphere + 1000000;
 			vel = float3(0,0,0);
 			cd = float4(0,0,0,0);
 			age = 0.0;

@@ -43,7 +43,7 @@ namespace GPU_Particles
         [Space(10)]
         [Header("Particles")]
         public Vector2 Mass = new Vector2(0.5f, 0.5f);
-        public Vector2 Momentum = new Vector2(0.5f, 0.5f);
+        public Vector2 Momentum = new Vector2(0.95f, 0.95f);
         public Vector2 Lifespan = new Vector2(5f, 5f);
         public int PreWarmFrames = 0;
 
@@ -59,12 +59,12 @@ namespace GPU_Particles
         public float InitialSpeed = 0f;
 
         [Header("Color")]
-        public Color StartColor;
+        public Color StartColor = new Color(1f,1f,1f,1f);
         public ColorRamp ColorByLife;
         public ColorRampRange ColorByVelocity;
 
         [Header("Noise")]
-        public Vector3 NoiseAmplitude = new Vector3(1f,1f,1f);
+        public Vector3 NoiseAmplitude = new Vector3(0f,0f,0f);
         public Vector3 NoiseScale = new Vector3(1f,1f,1f);
         public Vector3 NoiseOffset = new Vector3(0f,0f,0f);
         public Gradient TestGradient;
