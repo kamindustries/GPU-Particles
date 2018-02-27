@@ -28,6 +28,7 @@ Shader "DX11/Pointcloud_Simple"
 			float3 worldPos = dataBuffer[id].pos;
 			o.pos = mul(UNITY_MATRIX_VP, float4(worldPos,1.0f));
 			o.cd = dataBuffer[id].cd;
+
 			return o;
 		}
 

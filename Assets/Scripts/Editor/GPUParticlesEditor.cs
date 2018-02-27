@@ -41,8 +41,8 @@ namespace GPU_Particles {
 
 		void OnEnable() 
 		{
-			Compute = serializedObject.FindProperty("Compute");
-			Material = serializedObject.FindProperty("Material");
+			Compute = serializedObject.FindProperty("ParticleSystemKernel");
+			Material = serializedObject.FindProperty("ParticleMaterial");
 			
 			// Particles
 			Mass = serializedObject.FindProperty("Mass");

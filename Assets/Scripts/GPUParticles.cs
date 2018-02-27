@@ -1,44 +1,26 @@
 ﻿/* 
 Description:
     GPU Particles using compute shaders in Unity.
-    Built with Unity 2017.2
-
-TODO:
-    * Rotation
-    * Rotation over lifetime
-    * Rotation by speed
-    * Velocity over lifetime
-    * Gravity Modifier
-    * Limit velocity over lifetime
-    * Size
-    * Size over lifetime
-    * Emission types:
-        - Sphere
-        - Disk
-        - Line
-        - Mesh
-        - Skinned mesh renderer
-    * Rendering modes:
-        - Sprite
-        - Trails
-        - Instanced
-    * Optimization:
-        - Precompute random fields
-        - Precompute noise at lower resolution?
-    * Switch to DispatchIndirect to control kernel size dynamically
-    * Depth buffer collision
-
 */
 
 using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace GPU_Particles 
 {
     public class GPUParticles : MonoBehaviour
     {
         #region Public Variables
-        public ComputeShader Compute;
-        public Material Material;
+        public Mesh ParticlesMesh 
+        {
+            get 
+            {
+                return particlesMesh;
+            }
+        }
+        public ComputeShader ParticleSystemKernel;
+        public Material ParticleMaterial;
         
         [Space(10)]
         [Header("Particles")]
@@ -71,6 +53,7 @@ namespace GPU_Particles
         #endregion
         
         #region Private Variables
+        private Mesh particlesMesh;
         private ComputeBuffer particlesBuffer;
         private int _kernel;
         private Vector3 origin;
@@ -78,23 +61,14 @@ namespace GPU_Particles
         private Vector3 prevPos;
         
         private const int NumElements = 14; //float4 cd; float3 pos, vel; float age, lifespan, mass, momentum
-        // private const int VertCount = 262144; //32*32*16*16 (Groups*ThreadsPerGroup)
         private const int VertCount = 1048576; //64*64*16*16 (Groups*ThreadsPerGroup)
         #endregion
 
         //We initialize the buffers and the material used to draw.
         void Start()
         {
+            _kernel = ParticleSystemKernel.FindKernel("ParticleSystemKernel");
             CreateBuffers();            
-            _kernel = Compute.FindKernel("ParticleSystemKernel");
-
-            Compute.SetBuffer(_kernel, "output", particlesBuffer);
-
-            ColorByLife.Setup();
-            ColorByVelocity.Setup();
-            Compute.SetTexture(_kernel, "_colorByLife", (Texture)ColorByLife.Texture);
-            Compute.SetTexture(_kernel, "_colorByVelocity", (Texture)ColorByVelocity.Texture);
-
             UpdateUniforms();
 
             // Prewarm the system
@@ -106,20 +80,18 @@ namespace GPU_Particles
             
         }
 
-        void FixedUpdate() {
+        void FixedUpdate() 
+        {
             UpdateUniforms();
             Dispatch();
-            
         }
 
-        // Dispatch the kernel and draw points
-        void OnRenderObject() 
+        void Update() 
         {
-            Material.SetBuffer("dataBuffer", particlesBuffer);
-            Material.SetPass(0);
-            Graphics.DrawProcedural(MeshTopology.Points, VertCount);
+            ParticleMaterial.SetBuffer("dataBuffer", particlesBuffer);
+            ParticleMaterial.SetPass(0);
+            Graphics.DrawMesh(particlesMesh, Matrix4x4.identity, ParticleMaterial, 0, null, 0, null, true, true);
         }
-
 
         void OnDisable()
         {
@@ -129,9 +101,7 @@ namespace GPU_Particles
         //We dispatch 32x32x1 groups of threads of our CSMain kernel.
         private void Dispatch()
         {
-            // Compute.Dispatch(_kernel, 32, 32, 1);
-            Compute.Dispatch(_kernel, 64, 64, 1);
-
+            ParticleSystemKernel.Dispatch(_kernel, 64, 64, 1);
         }
 
         private void UpdateUniforms() 
@@ -164,26 +134,24 @@ namespace GPU_Particles
             }
 
             origin = transform.position;
-            
 
-            Compute.SetFloat("dt", Time.deltaTime);
-            Compute.SetVector("origin", origin);
-            Compute.SetVector("massNew", Mass);
-            Compute.SetVector("momentumNew", Momentum);
-            Compute.SetVector("lifespanNew", Lifespan);
-            Compute.SetFloat("inheritVelocityMult", InheritVelocity);
-            Compute.SetVector("initialVelocityDir", initialVelocityDir);
-            Compute.SetVector("gravityIn", Physics.gravity);
-            Compute.SetFloat("gravityModifier", GravityModifier);
-            Compute.SetInt("emission", Emission);
-            Compute.SetVector("emissionSize", EmissionSize);
-            Compute.SetFloat("initialSpeed", InitialSpeed);
-            Compute.SetVector("startColor", StartColor);
-            Compute.SetFloat("velocityColorRange", ColorByVelocity.Range);
-            Compute.SetVector("noiseAmplitude", NoiseAmplitude);
-            Compute.SetVector("noiseScale", NoiseScale);
-            Compute.SetVector("noiseOffset", NoiseOffset);
-
+            ParticleSystemKernel.SetFloat("dt", Time.deltaTime);
+            ParticleSystemKernel.SetVector("origin", origin);
+            ParticleSystemKernel.SetVector("massNew", Mass);
+            ParticleSystemKernel.SetVector("momentumNew", Momentum);
+            ParticleSystemKernel.SetVector("lifespanNew", Lifespan);
+            ParticleSystemKernel.SetFloat("inheritVelocityMult", InheritVelocity);
+            ParticleSystemKernel.SetVector("initialVelocityDir", initialVelocityDir);
+            ParticleSystemKernel.SetVector("gravityIn", Physics.gravity);
+            ParticleSystemKernel.SetFloat("gravityModifier", GravityModifier);
+            ParticleSystemKernel.SetInt("emission", Emission);
+            ParticleSystemKernel.SetVector("emissionSize", EmissionSize);
+            ParticleSystemKernel.SetFloat("initialSpeed", InitialSpeed);
+            ParticleSystemKernel.SetVector("startColor", StartColor);
+            ParticleSystemKernel.SetFloat("velocityColorRange", ColorByVelocity.Range);
+            ParticleSystemKernel.SetVector("noiseAmplitude", NoiseAmplitude);
+            ParticleSystemKernel.SetVector("noiseScale", NoiseScale);
+            ParticleSystemKernel.SetVector("noiseOffset", NoiseOffset);
         }
 
 
@@ -192,18 +160,37 @@ namespace GPU_Particles
         {
             // Allocate
             particlesBuffer = new ComputeBuffer(VertCount, 4 * NumElements); //float3 pos, vel, cd; float age
-            
-            // Initialize
-            float[] particleZeroes = new float[VertCount * NumElements];
+            particlesMesh = new Mesh();
+            float[] particlesTemp = new float[VertCount * NumElements];
+            Vector3 [] meshVerts = new Vector3[VertCount];
+            int [] meshIndices = new int[VertCount];
 
-            for (int i = 0; i < VertCount; i++)
-            {
+            // Initialize
+            for (int i = 0; i < VertCount; i++) {
+                meshVerts[i] = new Vector3(Random.value, Random.value, Random.value);
+                meshIndices[i] = i;
                 for (int j = 0; j < NumElements; j++) {
-                    particleZeroes[(i*NumElements)+j] = 0f;
+                    particlesTemp[(i*NumElements)+j] = 0f;
                 }
             }
 
-            particlesBuffer.SetData(particleZeroes);
+            particlesBuffer.SetData(particlesTemp);
+            ParticleSystemKernel.SetBuffer(_kernel, "output", particlesBuffer);
+
+            // Mesh
+            particlesMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            particlesMesh.vertices = meshVerts;
+            particlesMesh.SetIndices(meshIndices, MeshTopology.Points, 0);
+            particlesMesh.RecalculateBounds();
+            MeshFilter mf = gameObject.AddComponent(typeof(MeshFilter)) as MeshFilter;
+            mf.hideFlags = HideFlags.HideInInspector;
+            mf.mesh = particlesMesh;
+
+            // Create color ramp textures
+            ColorByLife.Setup();
+            ColorByVelocity.Setup();
+            ParticleSystemKernel.SetTexture(_kernel, "_colorByLife", (Texture)ColorByLife.Texture);
+            ParticleSystemKernel.SetTexture(_kernel, "_colorByVelocity", (Texture)ColorByVelocity.Texture);
 
         }
 

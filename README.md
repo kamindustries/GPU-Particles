@@ -1,6 +1,10 @@
 # GPU Particles
 
-A particle system using compute shaders in Unity. Built using 2017.2
+A particle system using compute shaders in Unity.
+
+### Requirements
+* \>=Unity 2017.3
+* GPU with compute shader support
 
 ### Usage
 Add the GPUParticles component to a Game Object and press play.   
