@@ -1,6 +1,8 @@
 # GPU Particles
 
-A simple particle system using compute shaders in Unity. This is a basic working example. I'm working on a more robust system with different rendering modes and more features called [Dust](https://github.com/kamindustries/Dust).
+A simple particle system using compute shaders in Unity.  
+
+This is a basic example. I'm working on a more robust system with different rendering modes and more features called [Dust](https://github.com/kamindustries/Dust).
 
 ### Requirements
 * \>=Unity 2017.3
